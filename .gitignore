@@ -77,3 +77,6 @@ Assets/Plugins/RootMotion/Baker
 Assets/Plugins/RootMotion/*.*
 Assets/Plugins/RootMotion/PuppetMaster/*
 !Assets/Plugins/RootMotion/PuppetMaster/.gitkeep
+
+Assets/Rewired/*
+!Assets/Rewired/.gitkeep
