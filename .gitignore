@@ -58,4 +58,22 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# The annoying terrain auto upgrade thing
+Assets/_TerrainAutoUpgrade
+Assets/_TerrainAutoUpgrade.meta
+
 # Imported
+Assets/EVP5/*
+!Assets/EVP5/.gitkeep
+
+Assets/PolygonCity/*
+!Assets/PolygonCity/.gitkeep
+
+Assets/Plugins/RootMotion/Shared Scripts
+Assets/Plugins/RootMotion/Shared Demo Assets
+Assets/Plugins/RootMotion/RagdollManager
+Assets/Plugins/RootMotion/Editor
+Assets/Plugins/RootMotion/Baker
+Assets/Plugins/RootMotion/*.*
+Assets/Plugins/RootMotion/PuppetMaster/*
+!Assets/Plugins/RootMotion/PuppetMaster/.gitkeep
