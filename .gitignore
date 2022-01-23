@@ -80,3 +80,6 @@ Assets/Plugins/RootMotion/PuppetMaster/*
 
 Assets/Rewired/*
 !Assets/Rewired/.gitkeep
+
+Assets/ExplosiveLLC/*
+!Assets/ExplosiveLLC/.gitkeep
