@@ -1,6 +1,17 @@
 using UnityEngine;
 using UnityHelpers;
 
+[System.Serializable]
+public struct InputData
+{
+    public Quaternion upAxisOrientation;
+    [Range(-1, 1)]
+    public float horizontal;
+    [Range(-1, 1)]
+    public float vertical;
+    public bool jump;
+    public bool sprint;
+}
 public struct PhysicalData3D
 {
     public Vector3 velocity;
@@ -54,19 +65,21 @@ public class MovementController3D : MonoBehaviour
     private PhysicalData3D currentPhysicals = default;
 
     [Space(10)]
-    public float leftDetectOffset;
-    public float rightDetectOffset;
-    public float frontDetectOffset;
-    public float backDetectOffset;
-    public float topDetectOffset;
-    public float bottomDetectOffset;
+    public float leftDetectOffset = -0.01f;
+    public float rightDetectOffset = -0.01f;
+    public float frontDetectOffset = -0.01f;
+    public float backDetectOffset = -0.01f;
+    public float topDetectOffset = -0.01f;
+    public float bottomDetectOffset = -0.01f;
 
     [Space(10)]
     public bool debugWallRays = true;
     private Bounds colliderBounds;
 
-    // private Vector2 otherObjectVelocity;
-    // private Vector2 otherObjectPrevVelocity;
+    private Vector3 otherObjectVelocity;
+    private Vector3 otherObjectPrevVelocity;
+
+    private Vector3 currentDirection = Vector3.forward;
     // private FixedJoint2D attachJoint;
 
     void Update()
@@ -90,7 +103,7 @@ public class MovementController3D : MonoBehaviour
     }
     void FixedUpdate()
     {
-        // RetrieveSurroundingVelocity();
+        RetrieveSurroundingVelocity();
         // AttachToBody();
         MoveCharacter();
         prevInput = currentInput;
@@ -102,10 +115,57 @@ public class MovementController3D : MonoBehaviour
         Gizmos.DrawWireCube(colliderBounds.center, colliderBounds.size);
     }
 
+    private void RetrieveSurroundingVelocity()
+    {
+        otherObjectPrevVelocity = otherObjectVelocity;
+        //Get other object's velocity if climbing or standing on it to keep up with it
+        if (currentPhysicals.frontWall && (currentState == SpecificState.SideClimbDown || currentState == SpecificState.SideClimbUp || currentState == SpecificState.SideClimbIdle))
+        {
+            var frontWallPhysics = currentPhysicals.frontWall.GetComponentInChildren<Rigidbody>();
+            if (!frontWallPhysics)
+                frontWallPhysics = currentPhysicals.frontWall.GetComponentInParent<Rigidbody>();
+
+            if (frontWallPhysics)
+            {
+                // Debug.Log(frontWallPhysics.name);
+                otherObjectVelocity = frontWallPhysics.velocity;
+            }
+        }
+        else if (currentPhysicals.topWall && (currentState == SpecificState.TopClimb || currentState == SpecificState.TopClimbIdle))
+        {
+            var topWallPhysics = currentPhysicals.topWall.GetComponentInChildren<Rigidbody>();
+            if (!topWallPhysics)
+                topWallPhysics = currentPhysicals.topWall.GetComponentInParent<Rigidbody>();
+
+            if (topWallPhysics)
+            {
+                // Debug.Log(topWallPhysics.name);
+                otherObjectVelocity = topWallPhysics.velocity;
+            }
+        }
+        else if (currentPhysicals.botWall)
+        {
+            var botWallPhysics = currentPhysicals.botWall.GetComponentInChildren<Rigidbody>();
+            if (!botWallPhysics)
+                botWallPhysics = currentPhysicals.botWall.GetComponentInParent<Rigidbody>();
+            
+            if (botWallPhysics)
+            {
+                // Debug.Log(botWallPhysics.name);
+                otherObjectVelocity = botWallPhysics.velocity; //Might want to remove y value because object is below us and we are only standing on it, not grabbing on to it
+            }
+        }
+
+        // Debug.Log(otherObjectVelocity);
+        //Cancel out any velocities that can't be achieved;
+        // if ((currentPhysicals.rightWall && otherObjectVelocity.x > float.Epsilon) || (currentPhysicals.leftWall && otherObjectVelocity.x < -float.Epsilon))
+        //     otherObjectVelocity = new Vector2(0, otherObjectVelocity.y);
+        // if ((currentPhysicals.topWall && otherObjectVelocity.y > float.Epsilon) || (currentPhysicals.botWall && otherObjectVelocity.y < -float.Epsilon))
+        //     otherObjectVelocity = new Vector2(otherObjectVelocity.x, 0);
+    }
+
     private void ApplyAnimation()
     {
-        // bool flipX = IsFacingRight(currentState);
-        // SetFlipState(invertFlip ? !flipX : flipX);
         var prevAnimeState = GetAnimeFromState(prevState);
         var currentAnimeState = GetAnimeFromState(currentState);
         if (prevAnimeState != currentAnimeState)
@@ -119,15 +179,13 @@ public class MovementController3D : MonoBehaviour
 
     private void MoveCharacter()
     {
-        Vector3 planarForce = Vector3.zero;
         float verticalForce = 0;
-        Vector3 expectedVelocityDir = (new Vector2(currentInput.horizontal, currentInput.vertical).ToCircle()).ToXZVector3();
+        Vector3 expectedVelocityDir = currentInput.upAxisOrientation * (new Vector2(currentInput.horizontal, currentInput.vertical).ToCircle()).ToXZVector3();
 
-        // var prevAnimeState = GetAnimeFromState(prevState);
-        // var currentAnimeState = GetAnimeFromState(currentState);
-        // var isFacingRight = IsFacingRight(currentState);
+        if (!expectedVelocityDir.IsZero())
+            currentDirection = expectedVelocityDir;
 
-        // Vector2 otherObjectPredictedVelocity = (otherObjectVelocity - otherObjectPrevVelocity);
+        Vector3 otherObjectPredictedVelocity = (otherObjectVelocity - otherObjectPrevVelocity);
         
         float planarSpeed = 0;
         if (currentState == SpecificState.Idle || currentState == SpecificState.Walk || currentState == SpecificState.Run || currentState == SpecificState.SideClimbUp || currentState == SpecificState.SideClimbDown || currentState == SpecificState.SideClimbIdle || currentState == SpecificState.TopClimb || currentState == SpecificState.TopClimbIdle || currentState == SpecificState.Fall || currentState == SpecificState.Jump)
@@ -142,8 +200,13 @@ public class MovementController3D : MonoBehaviour
                     planarSpeed = runSpeed;
             }
         }
-        planarForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.xz().ToXZVector3(), expectedVelocityDir * planarSpeed, Time.fixedDeltaTime);
-        // horizontalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.x, (otherObjectVelocity.x + otherObjectPredictedVelocity.x) + horizontalVelocity, Time.fixedDeltaTime);
+                
+        Vector3 currentVelocity = AffectedBody.velocity.xz().ToXZVector3();
+        // if (currentVelocity.magnitude > runSpeed)
+        //     currentVelocity = currentVelocity.normalized * runSpeed; //To stop the character from having super human power
+        // Vector3 planarForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, currentVelocity, expectedVelocityDir * planarSpeed, Time.fixedDeltaTime);
+        // Vector3 addedPlanarForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.xz().ToXZVector3(), (otherObjectVelocity.xz() + otherObjectPredictedVelocity.xz()).ToXZVector3(), Time.fixedDeltaTime);
+        Vector3 planarForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, currentVelocity, expectedVelocityDir * planarSpeed + (otherObjectVelocity.xz() + otherObjectPredictedVelocity.xz()).ToXZVector3(), Time.fixedDeltaTime); 
 
         // Debug.Log(currentState + " from " + prevState);
         if (currentState == SpecificState.SideClimbUp || currentState == SpecificState.SideClimbDown || currentState == SpecificState.SideClimbIdle || currentState == SpecificState.TopClimb || currentState == SpecificState.TopClimbIdle || (currentState == SpecificState.Jump && prevState != SpecificState.Jump))
@@ -161,7 +224,8 @@ public class MovementController3D : MonoBehaviour
                     verticalSpeed = walkJumpSpeed;
             }
 
-            verticalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.y, verticalSpeed, Time.fixedDeltaTime, true);
+            // verticalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.y, verticalSpeed, Time.fixedDeltaTime, true);
+            verticalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.y, (otherObjectVelocity.y + otherObjectPredictedVelocity.y) + verticalSpeed, Time.fixedDeltaTime, true);
             // verticalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.y, (otherObjectVelocity.y + otherObjectPredictedVelocity.y) + verticalSpeed, Time.fixedDeltaTime, true);
         }
 
@@ -174,10 +238,12 @@ public class MovementController3D : MonoBehaviour
             verticalForce = PhysicsHelpers.CalculateRequiredForceForSpeed(AffectedBody.mass, AffectedBody.velocity.y, 0, Time.fixedDeltaTime);
         
         // if (Mathf.Abs(currentInput.horizontal) > float.Epsilon || (Mathf.Abs(currentInput.horizontal) < float.Epsilon && Mathf.Abs(prevInput.horizontal) > float.Epsilon))
-        if (Mathf.Abs(planarForce.magnitude) > float.Epsilon)
+        if (Mathf.Abs((planarForce).magnitude) > float.Epsilon)
             AffectedBody.AddForce(planarForce);
         if (Mathf.Abs(verticalForce) > float.Epsilon)
             AffectedBody.AddForce(Vector3.up * verticalForce);
+
+        AffectedBody.MoveRotation(Quaternion.LookRotation(currentDirection));
     }
 
     private void TickState()
@@ -191,16 +257,15 @@ public class MovementController3D : MonoBehaviour
         var nextState = currentState;
 
         bool isInputtingWalk = currentInput.horizontal > deadzone || currentInput.horizontal < -deadzone || currentInput.vertical > deadzone || currentInput.vertical < -deadzone;
-        bool isInputtingRun = currentInput.horizontal > deadzone || currentInput.horizontal < -deadzone || currentInput.vertical > deadzone || currentInput.vertical < -deadzone;
-        bool isFalling = currentPhysicals.velocity.y < -deadzone;
+
         switch (currentState)
         {
             case SpecificState.Idle:
-                if (isInputtingRun)
+                if (isInputtingWalk && currentInput.sprint)
                     nextState = SpecificState.Run;
                 else if (isInputtingWalk)
                     nextState = SpecificState.Walk;
-                else if (isFalling)
+                else if (!currentPhysicals.botWall)
                     nextState = SpecificState.Fall;
                 else if (currentInput.jump)
                     nextState = SpecificState.Jump;
@@ -210,15 +275,15 @@ public class MovementController3D : MonoBehaviour
                     nextState = SpecificState.Fall;
                 break;
             case SpecificState.Walk:
-                if (isInputtingRun)
+                if (isInputtingWalk && currentInput.sprint)
                     nextState = SpecificState.Run;
                 else if (!isInputtingWalk)
                     nextState = SpecificState.Idle;
-                else if (isFalling)
+                else if (!currentPhysicals.botWall)
                     nextState = SpecificState.Fall;
                 else if (currentInput.jump)
                     nextState = SpecificState.Jump;
-                else if (currentPhysicals.leftWall) //Should be front wall
+                else if (currentPhysicals.frontWall)
                     nextState = SpecificState.SideClimbIdle;
                 else if (currentPhysicals.topWall && currentInput.jump)
                     nextState = SpecificState.TopClimb;
@@ -226,19 +291,19 @@ public class MovementController3D : MonoBehaviour
             case SpecificState.Run:
                 if (!isInputtingWalk)
                     nextState = SpecificState.Idle;
-                else if (!isInputtingRun)
-                    nextState = SpecificState.Walk;
-                else if (isFalling)
-                    nextState = SpecificState.Fall;
                 else if (currentInput.jump)
                     nextState = SpecificState.Jump;
-                else if (currentPhysicals.leftWall) //Should be front wall
+                else if (!currentInput.sprint)
+                    nextState = SpecificState.Walk;
+                else if (!currentPhysicals.botWall)
+                    nextState = SpecificState.Fall;
+                else if (currentPhysicals.frontWall)
                     nextState = SpecificState.SideClimbIdle;
                 else if (currentPhysicals.topWall && currentInput.jump)
                     nextState = SpecificState.TopClimb;
                 break;
             case SpecificState.Jump:
-                if (isFalling)
+                if (currentPhysicals.velocity.y < -deadzone)
                     nextState = SpecificState.Fall;
                 else if (currentPhysicals.botWall)
                     nextState = SpecificState.Idle;
@@ -246,127 +311,61 @@ public class MovementController3D : MonoBehaviour
                     nextState = SpecificState.TopClimbIdle;
                 break;
             case SpecificState.Fall:
-                if (currentPhysicals.botWall && isInputtingRun)
+                if (currentPhysicals.botWall && isInputtingWalk && currentInput.sprint)
                     nextState = SpecificState.Run;
                 else if (currentPhysicals.botWall && isInputtingWalk)
                     nextState = SpecificState.Walk;
                 else if (currentPhysicals.botWall)
                     nextState = SpecificState.Idle;
-                else if (currentPhysicals.leftWall && isInputtingWalk) //Should be front
+                else if (currentPhysicals.frontWall && isInputtingWalk)
                     nextState = SpecificState.SideClimbIdle;
                 break;
-            // case AnimeState.SideClimbIdle:
-            //     if (currentInput.horizontal > -deadzone)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     else if (currentInput.vertical > deadzone)
-            //         nextState = SpecificState.ClimbLeftUp;
-            //     else if (currentInput.vertical < -deadzone && !currentPhysicals.botWall)
-            //         nextState = SpecificState.ClimbLeftDown;
-            //     else if (!currentPhysicals.leftWall)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     break;
-            // case SpecificState.ClimbRightIdle:
-            //     if (currentInput.horizontal < deadzone)
-            //         nextState = SpecificState.FallFaceRight;
-            //     else if (currentInput.vertical > deadzone)
-            //         nextState = SpecificState.ClimbRightUp;
-            //     else if (currentInput.vertical < -deadzone && !currentPhysicals.botWall)
-            //         nextState = SpecificState.ClimbRightDown;
-            //     else if (!currentPhysicals.rightWall)
-            //         nextState = SpecificState.FallFaceRight;
-            //     break;
-            // case AnimeState.SideClimbUp:
-            //     if (currentInput.horizontal > -deadzone)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     else if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.ClimbLeftIdle;
-            //     else if (!currentPhysicals.leftWall)
-            //         nextState = SpecificState.FallMoveLeft;
-            //     else if (currentPhysicals.topWall && currentInput.vertical > deadzone)
-            //         nextState = SpecificState.ClimbTopIdleLeft;
-            //     else if (!currentPhysicals.leftWall)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     break;
-            // case SpecificState.ClimbRightUp:
-            //     if (currentInput.horizontal < deadzone)
-            //         nextState = SpecificState.FallFaceRight;
-            //     else if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.ClimbRightIdle;
-            //     else if (!currentPhysicals.rightWall)
-            //         nextState = SpecificState.FallMoveRight;
-            //     else if (currentPhysicals.topWall && currentInput.vertical > deadzone)
-            //         nextState = SpecificState.ClimbTopIdleRight;
-            //     else if (!currentPhysicals.rightWall)
-            //         nextState = SpecificState.FallFaceRight;
-            //     break;
-            // case AnimeState.SideClimbDown:
-            //     if (currentInput.horizontal > -deadzone)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     else if (currentInput.vertical > -deadzone)
-            //         nextState = SpecificState.ClimbLeftIdle;
-            //     else if (!currentPhysicals.leftWall)
-            //         nextState = SpecificState.FallMoveLeft;
-            //     else if (currentPhysicals.botWall)
-            //         nextState = SpecificState.ClimbLeftIdle;
-            //     else if (!currentPhysicals.leftWall)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     break;
-            // case SpecificState.ClimbRightDown:
-            //     if (currentInput.horizontal < deadzone)
-            //         nextState = SpecificState.FallFaceRight;
-            //     else if (currentInput.vertical > -deadzone)
-            //         nextState = SpecificState.ClimbRightIdle;
-            //     else if (!currentPhysicals.rightWall)
-            //         nextState = SpecificState.FallMoveRight;
-            //     else if (currentPhysicals.botWall)
-            //         nextState = SpecificState.ClimbRightIdle;
-            //     else if (!currentPhysicals.rightWall)
-            //         nextState = SpecificState.FallFaceRight;
-            //     break;
-            // case AnimeState.TopClimbIdle:
-            //     if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     else if (currentInput.horizontal < -deadzone && !currentPhysicals.leftWall)
-            //         nextState = SpecificState.ClimbTopMoveLeft;
-            //     else if (currentInput.horizontal > deadzone)
-            //         nextState = SpecificState.ClimbTopIdleRight;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     break;
-            // case SpecificState.ClimbTopIdleRight:
-            //     if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.FallFaceRight;
-            //     else if (currentInput.horizontal > deadzone && !currentPhysicals.rightWall)
-            //         nextState = SpecificState.ClimbTopMoveRight;
-            //     else if (currentInput.horizontal < -deadzone)
-            //         nextState = SpecificState.ClimbTopIdleLeft;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallFaceRight;
-            //     break;
-            // case AnimeState.TopClimb:
-            //     if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.FallMoveLeft;
-            //     else if (currentInput.horizontal > -deadzone)
-            //         nextState = SpecificState.ClimbTopIdleLeft;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallMoveLeft;
-            //     else if (currentPhysicals.leftWall)
-            //         nextState = SpecificState.ClimbTopIdleLeft;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallFaceLeft;
-            //     break;
-            // case SpecificState.ClimbTopMoveRight:
-            //     if (currentInput.vertical < deadzone)
-            //         nextState = SpecificState.FallMoveRight;
-            //     else if (currentInput.horizontal < deadzone)
-            //         nextState = SpecificState.ClimbTopIdleRight;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallMoveRight;
-            //     else if (currentPhysicals.rightWall)
-            //         nextState = SpecificState.ClimbTopIdleRight;
-            //     else if (!currentPhysicals.topWall)
-            //         nextState = SpecificState.FallFaceRight;
-            //     break;
+            case SpecificState.SideClimbIdle:
+                if (!currentPhysicals.frontWall || !currentInput.jump)
+                    nextState = SpecificState.Fall;
+                else if (currentInput.vertical > deadzone)
+                    nextState = SpecificState.SideClimbUp;
+                else if (currentInput.vertical < -deadzone && !currentPhysicals.botWall)
+                    nextState = SpecificState.SideClimbDown;
+                break;
+            case SpecificState.SideClimbUp:
+                if (!currentPhysicals.frontWall || !currentInput.jump)
+                    nextState = SpecificState.Fall;
+                else if (currentInput.vertical > -deadzone && currentInput.vertical < deadzone)
+                    nextState = SpecificState.SideClimbIdle;
+                else if (currentInput.vertical < -deadzone)
+                    nextState = SpecificState.SideClimbDown;
+                else if (currentPhysicals.topWall)
+                    nextState = SpecificState.TopClimbIdle;
+                break;
+            case SpecificState.SideClimbDown:
+                if (!currentPhysicals.frontWall || !currentInput.jump)
+                    nextState = SpecificState.Fall;
+                else if (currentPhysicals.botWall || (currentInput.vertical > -deadzone && currentInput.vertical < deadzone))
+                    nextState = SpecificState.SideClimbIdle;
+                else if (currentInput.vertical > deadzone)
+                    nextState = SpecificState.SideClimbUp;
+                break;
+            case SpecificState.TopClimbIdle:
+                if (!currentInput.jump)
+                    nextState = SpecificState.Fall;
+                else if (isInputtingWalk)
+                    nextState = SpecificState.TopClimb;
+                else if (currentPhysicals.frontWall && currentInput.vertical < -deadzone)
+                    nextState = SpecificState.SideClimbDown;
+                else if (!currentPhysicals.topWall)
+                    nextState = SpecificState.Fall;
+                break;
+            case SpecificState.TopClimb:
+                if (!currentInput.jump)
+                    nextState = SpecificState.Fall;
+                else if (!isInputtingWalk)
+                    nextState = SpecificState.TopClimbIdle;
+                else if (currentPhysicals.frontWall)
+                    nextState = SpecificState.SideClimbIdle;
+                else if (!currentPhysicals.topWall)
+                    nextState = SpecificState.Fall;
+                break;
         }
         return nextState;
     }
