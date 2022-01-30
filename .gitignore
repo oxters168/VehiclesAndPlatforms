@@ -83,3 +83,9 @@ Assets/Rewired/*
 
 Assets/ExplosiveLLC/*
 !Assets/ExplosiveLLC/.gitkeep
+
+Assets/TextMesh Pro/*
+!Assets/TextMesh Pro/.gitkeep
+
+Assets/Psychose Interactive/NGSS/*
+!Assets/Psychose Interactive/NGSS/.gitkeep

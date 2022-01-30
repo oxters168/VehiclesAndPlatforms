@@ -7,14 +7,15 @@ public class RewiredPlayerInput : MonoBehaviour
 {
     public int playerId = 0;
     private Player player;
-    
-    public bool inVehicle;
+
+    public Vector2 orbitSensitivity = Vector2.one;
     public OrbitCameraController orbitCamera;
 
     public MovementController3D character;
 
     private Vector2 prevMousePosition = Vector2.zero;
 
+    public bool inVehicle;
     [Tooltip("Frequency of vehicle sphere cast in seconds")]
     public float vehicleCastTime = 0.1f;
     public float vehicleCastRadius = 2;
@@ -38,7 +39,7 @@ public class RewiredPlayerInput : MonoBehaviour
         if (character)
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawSphere(character.transform.position, vehicleCastRadius);
+            Gizmos.DrawWireSphere(character.transform.position, vehicleCastRadius);
         }
     }
 
