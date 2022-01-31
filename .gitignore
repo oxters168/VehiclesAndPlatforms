@@ -89,3 +89,6 @@ Assets/TextMesh Pro/*
 
 Assets/Psychose Interactive/NGSS/*
 !Assets/Psychose Interactive/NGSS/.gitkeep
+
+Assets/PolygonTown/*
+!Assets/PolygonTown/.gitkeep

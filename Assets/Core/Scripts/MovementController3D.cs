@@ -25,9 +25,9 @@ public class MovementController3D : MonoBehaviour
 
     [Space(10)]
     public float walkSpeed = 2.5f;
-    public float runSpeed = 4;
+    public float runSpeed = 6;
     public float climbSpeed = 2;
-    public float walkJumpSpeed = 5;
+    public float walkJumpSpeed = 6;
     public float runJumpSpeed = 4;
     public float addedFallAcceleration = 9.8f;
     public float wallDetectionDistance = 0.01f;
@@ -81,7 +81,7 @@ public class MovementController3D : MonoBehaviour
 
     private Vector3 currentDirection = Vector3.forward;
     // private FixedJoint2D attachJoint;
-
+    
     void Update()
     {
         currentPhysicals.velocity = AffectedBody.velocity;
@@ -166,10 +166,12 @@ public class MovementController3D : MonoBehaviour
 
     private void ApplyAnimation()
     {
-        var prevAnimeState = GetAnimeFromState(prevState);
-        var currentAnimeState = GetAnimeFromState(currentState);
-        if (prevAnimeState != currentAnimeState)
-            SetAnimTrigger(currentAnimeState.ToString());
+        // var prevAnimeState = GetAnimeFromState(prevState);
+        // var currentAnimeState = GetAnimeFromState(currentState);
+        // if (prevAnimeState != currentAnimeState)
+        //     SetAnimTrigger(currentAnimeState.ToString());
+        if (prevState != currentState)
+            SetAnimTrigger(currentState.ToString());
     }
     private void SetAnimTrigger(string name)
     {
@@ -458,7 +460,7 @@ public class MovementController3D : MonoBehaviour
         currentPhysicals.leftWall = WallCast(debugWallRays, wallMask, 5, 5, leftFaceCenter, -transform.right, transform.up, colliderBounds.size.y, transform.forward, colliderBounds.size.z);
         currentPhysicals.frontWall = WallCast(debugWallRays, wallMask, 5, 5, frontFaceCenter, transform.forward, transform.up, colliderBounds.size.y, transform.right, colliderBounds.size.x);
         currentPhysicals.backWall = WallCast(debugWallRays, wallMask, 5, 5, backFaceCenter, -transform.forward, transform.up, colliderBounds.size.y, transform.right, colliderBounds.size.x);
-        currentPhysicals.topWall = WallCast(debugWallRays, wallMask, 5, 5, topFaceCenter, transform.up, transform.right, colliderBounds.size.x, transform.forward, colliderBounds.size.z);
-        currentPhysicals.botWall = WallCast(debugWallRays, wallMask, 5, 5, botFaceCenter, -transform.up, transform.right, colliderBounds.size.x, transform.forward, colliderBounds.size.z);
+        currentPhysicals.topWall = WallCast(debugWallRays, ceilingMask, 5, 5, topFaceCenter, transform.up, transform.right, colliderBounds.size.x, transform.forward, colliderBounds.size.z);
+        currentPhysicals.botWall = WallCast(debugWallRays, groundMask, 5, 5, botFaceCenter, -transform.up, transform.right, colliderBounds.size.x, transform.forward, colliderBounds.size.z);
     }
 }
