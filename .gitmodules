@@ -1,3 +1,6 @@
 [submodule "Assets/Submodules/UnityHelpers"]
 	path = Assets/Submodules/UnityHelpers
 	url = https://github.com/oxters168/UnityHelpers.git
+[submodule "Assets/Submodules/RealtimeCSG"]
+	path = Assets/Submodules/RealtimeCSG
+	url = https://github.com/LogicalError/realtime-CSG-for-unity.git
