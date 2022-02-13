@@ -92,3 +92,10 @@ Assets/Psychose Interactive/NGSS/*
 
 Assets/PolygonTown/*
 !Assets/PolygonTown/.gitkeep
+
+Assets/EasyRoads3D scenes/*
+Assets/EasyRoads3D/*
+!Assets/EasyRoads3D/.gitkeep
+
+Assets/TerrainComposer2/*
+!Assets/TerrainComposer2/.gitkeep
